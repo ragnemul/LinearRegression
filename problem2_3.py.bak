@@ -1,0 +1,279 @@
+#
+# MACHINE LEARNING WEEK 7 Project
+# Linear Regression
+# Author: Luis Menendez (luis.menendez@gmail.com)
+#
+
+import numpy as np
+import pandas as pd
+import csv
+import matplotlib.pyplot as plt
+import itertools
+import statistics
+from mpl_toolkits.mplot3d import Axes3D
+
+
+
+data = pd.read_csv('./input2.csv', header=None, names = ["age","weight","height"])
+
+# need to use population standard deviation
+pstdev = data.apply(statistics.pstdev, axis=0)
+
+mean = data.mean(axis=0)
+
+data_norm = pd.DataFrame()
+data_norm["age"] = data["age"].apply(lambda x: x / pstdev["age"])
+data_norm["weight"] = data["weight"].apply(lambda x: x / pstdev["weight"])
+data_norm["height"] = data["height"].apply(lambda x: x / pstdev["height"])
+
+# X contains first column with intercept (ones) and features (age and weight)
+X = np.c_[np.ones(data_norm.shape[0]), data_norm.iloc[:,[0,1]]]
+
+# Y contains the desired result
+Y = np.c_[data.iloc[:,2]]
+
+# W contains the weights (B)
+W = np.array([0.0, 0.0, 0.0])
+
+
+
+"""
+returns the sum of products of each weight by each feature
+"""
+def F_Xi(W, Xi):
+
+    ret = np.matmul(Xi,W.transpose())
+    return ret
+
+
+    #sum = 0;
+    #for j, item in enumerate(Xi):
+    #    sum = sum + W[j] * Xi[j]
+
+    #return sum
+
+def j_weight_update(W,X,Y,alpha,j):
+    sum = 0
+    for i, Xi in enumerate(X):
+        sum = sum + Xi[j] * (Y[i] - F_Xi(W,Xi))
+
+    W[j] = W[j] + (alpha / len(X)) * sum
+
+
+def weights_update(W,X,Y,alpha):
+    for j in range(len(W)):
+        j_weight_update(W,X,Y,alpha,j)
+
+
+"""
+updates the error for each iteration
+returns the error
+"""
+def update_error(W,X,Y):
+    sum = 0
+
+    for i, Xi in enumerate(X):
+        error = (Y[i] - F_Xi(W,X[i]))[0]
+        error_power = error ** 2
+        sum = sum + error_power
+
+    ret = (1 / (2 * len(X))) * sum
+    return ret
+
+
+"""
+returns the evolution of errors in R
+"""
+def linear_regression(iterations,W,X,Y,alpha):
+    # resets the weights vector
+    for i, item in enumerate(W):
+        W[i] = 0.0
+
+    # initialize the error list
+    R = []
+    for i in range(iterations):
+        # first update the weights for all the samples
+        weights_update(W,X,Y,alpha)
+
+        # second compute the error over all samples
+        R.append(update_error(W,X,Y))
+
+    # print ("error of "+str(R[-1])+" with alpha: "+str(alpha))
+    output_str = str(alpha)+"," + str(iterations)+"," + str(W[0]) + "," + str(W[1]) + "," + str(W[2])
+    return output_str
+
+
+
+def gradient_descent(iterations, alpha, x, y, max_iter=10000, ep=0.0001):
+
+    converged = False
+    iter = 0
+    m = x.shape[0]  # number of samples
+
+    # initial theta
+    t0 = 0
+    t1 = 0
+    t2 = 0
+
+
+    # total error, J(theta)
+    J = sum([(t0 + t1 * x[i][1] + t2 * x[i][2]- y[i]) ** 2 for i in range(m)])
+
+    # Iterate Loop
+    # for iter in range(iterations):
+    while not converged:
+        # for each training sample, compute the gradient (d/d_theta j(theta))
+        grad0 = 1.0 / m * sum([(t0 + t1 * x[i][1] + t2 * x[i][2] - y[i]) for i in range(m)])
+        grad1 = 1.0 / m * sum([(t0 + t1 * x[i][1] + t2 * x[i][2] - y[i]) * x[i][1] for i in range(m)])
+        grad2 = 1.0 / m * sum([(t0 + t1 * x[i][1] + t2 * x[i][2] - y[i]) * x[i][2] for i in range(m)])
+
+        # update the theta_temp
+        temp0 = t0 - alpha * grad0
+        temp1 = t1 - alpha * grad1
+        temp2 = t2 - alpha * grad2
+
+        # update theta
+        t0 = temp0
+        t1 = temp1
+        t2 = temp2
+
+        # mean squared error
+        e = sum([(t0 + t1 * x[i][1] + t2 * x[i][2] - y[i]) ** 2 for i in range(m)])
+
+        if abs(J - e) <= ep:
+            print ('Converged, iterations: ', iter, '!!!')
+            converged = True
+
+        J = e  # update error
+        iter += 1  # update iter
+
+        if iter == max_iter:
+            print ('Max interactions exceeded!')
+            converged = True
+
+    return t1, t2, t0
+
+
+
+
+if __name__ == '__main__':
+
+    t1, t2, t3 = gradient_descent(1000,0.01,X,Y,10000,0.0001)
+    print("Gradient descend: ", str(t1) + "," + str(t2) + "," + str(t3))
+
+    #for i in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]:
+    #   output = linear_regression(100,W,X,Y,i)
+    #   print (output)
+
+    #output = linear_regression(100,W,X,Y,0.2)
+    #print (output)
+
+    output_df = pd.DataFrame()
+
+
+    # plot points
+    fig = plt.figure()
+    ax = plt.subplot(111, projection='3d')
+
+    # Age (years)
+    age_x = data["age"].values.tolist()
+    ax.set_xlabel('Age (years)')
+
+    # Weight(Kilograms)
+    weight_y= data["weight"].values.tolist()
+    ax.set_ylabel('Weight (Kilograms)')
+
+    # Height (meters)
+    height_z = data["height"].values.tolist()
+    ax.set_zlabel('Height (meters)')
+
+
+    ax.scatter(age_x, weight_y, height_z)
+
+
+
+"""
+# do fit
+tmp_A = []
+tmp_b = []
+for i in range(len(age_x)):
+    tmp_A.append([age_x[i], weight_y[i], 1])
+    tmp_b.append(height_z[i])
+b = np.matrix(tmp_b).T
+A = np.matrix(tmp_A)
+fit = (A.T * A).I * A.T * b
+errors = b - A * fit
+residual = np.linalg.norm(errors)
+
+print ("solution:")
+print ("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
+
+# plot plane
+xlim = ax.get_xlim()
+ylim = ax.get_ylim()
+X,Y = np.meshgrid(np.arange(xlim[0], xlim[1]),
+                  np.arange(ylim[0], ylim[1]))
+Z = np.zeros(X.shape)
+for r in range(X.shape[0]):
+    for c in range(X.shape[1]):
+        Z[r,c] = fit[0] * X[r,c] + fit[1] * Y[r,c] + fit[2]
+ax.plot_wireframe(X,Y,Z, color='k')
+
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+plt.show()
+
+"""
+
+#0.067712 x + 0.000229 y + 0.739451 = z
+
+
+# plot plane
+xlim = ax.get_xlim()
+ylim = ax.get_ylim()
+X,Y = np.meshgrid(np.arange(xlim[0], xlim[1]),
+                  np.arange(ylim[0], ylim[1]))
+Z = np.zeros(X.shape)
+for r in range(X.shape[0]):
+    for c in range(X.shape[1]):
+        #Z[r,c] = W[1] * X[r,c] + W[2] * Y[r,c] + W[0]
+        Z[r, c] = 0.067712 * X[r, c] + 0.000229 * Y[r, c] + 0.739451
+ax.plot_wireframe(X,Y,Z, color='k')
+
+plt.show()
+
+
+"""
+x_surf, y_surf = np.meshgrid(np.linspace(data["age]"].min(),data["age"].max()),data["weight"].min(),data["weight"].max())
+
+it = np.ones(shape=(100, 3))    # it[:,2] will be set of bias values
+x = np.arange(1, 200, 20)
+N = x.size
+a,b = np.meshgrid(x,x)
+d = np.random.uniform(-100, 100, 100)
+
+#it = np.array([b.ravel(),a.ravel(),np.ones(N)])
+indx = 0
+for a, b in itertools.product(x, x):
+    it[indx][0] = a
+    it[indx][1] = b
+    indx += 1
+
+y = .4*it[:,0] + 1.4*it[:,1] + d
+
+result = W[1] * a + W[2] * b + W[0]
+plt3d = plt.figure().gca(projection='3d')
+
+
+x_surf, y_surf = np.meshgrid(age_x,weight_y)
+
+plt3d.scatter(age_x, weight_y, height_z)
+plt3d.plot_surface(x_surf, y_surf, np.meshgrid(result,result))
+
+plt3d.show()
+# where N = x.size still
+"""
+
+
+
